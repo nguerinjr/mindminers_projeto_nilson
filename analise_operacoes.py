@@ -12,17 +12,21 @@ def calc_pm(pm, qm, pc, qc, tc):
     pm = (pm * qm + pc * qc + tc) / (qm + qc)
     return pm
 
-def calc_qm(qm, qc):
+def calc_add_qm(qm, qc):
     qm = qm + qc
     return qc
+
+def calc_sell_qm(qm, qv):
+    qm = qm - qv
+    return qv
 
 def calc_ra(pv, pm, qv, tv):
     ra = (pv - pm) * qv - tv
     return ra
 
 
-pm = defaultdict(lambda: defaultdict(lambda: 0))
-qm = defaultdict(lambda: defaultdict(lambda: 0))
+pm = defaultdict(lambda: defaultdict(lambda: -1))
+qm = defaultdict(lambda: defaultdict(lambda: -1))
 ra = defaultdict(lambda: defaultdict(lambda: []))
 pa_acao = defaultdict(lambda: defaultdict(lambda: 0))
 pa = defaultdict(lambda: 0)
@@ -35,56 +39,67 @@ for index, op in stocks_df.iterrows():
     cont_mes[mes] += 1
 
     # sempre calcula o qm
-    # usa valor do mês anterior como inicial
-    # com essa estratégia, todo mes esses dados estarão disponíveis no mês anterior
-    # não estou considerando mudança de ano (que poderia ser feita com a manipulação de datetimes)
-    mes_ref = mes
-    if cont_mes[mes] == 1:
-        mes_ref = mes - 1 if cont_mes[mes - 1] else mes
-
-    qm[acao][mes] = calc_qm(
-        qm[acao][mes_ref],
-        op['Quantidade']
-    )
+    # ordenação introduzida no python 3.6 e oficialmente incluida no 3.7
+    def get_value(dict_ref, mes):
+        if dict_ref[mes] < 0:
+            last_moths = list(dict_ref.keys())
+            last_moths.pop(-1)
+            if len(last_moths):
+                mes = last_moths[-1]
+        
+        return dict_ref[mes]
 
     # se compra, calcula o pm
     if op['Operação'] == 'Compra':
         pm[acao][mes] = calc_pm(
-            pm[acao][mes_ref],
-            qm[acao][mes],
+            get_value(pm[acao], mes),
+            get_value(qm[acao], mes),
             op['Preço'],
             op['Quantidade'],
             op['Taxa de corretagem']
         )
+
+        qm[acao][mes] = calc_add_qm(
+            get_value(qm[acao], mes),
+            op['Quantidade']
+        )
+
     # se venda, calcupa o ra
     # TODO: o ra parece ser só do mês; organizar melhor
     elif op['Operação'] == 'Venda':
         ra[mes][acao].append(calc_ra(
             op['Preço'],
-            pm[acao][mes],
+            get_value(pm[acao], mes),
             op['Quantidade'],
             op['Taxa de corretagem'])
         )
 
+        qm[acao][mes] = calc_sell_qm(
+            get_value(qm[acao], mes),
+            op['Quantidade']
+        )
+        
         # se houve prejuizo na última venda
         # TODO: o pa parece ser só do mês; organizar melhor (pode ser ui interessa para análises por ação)
         if ra[mes][acao][-1] < 0:
-            pa_acao[acao][mes] += abs(ra[mes][acao][-1])
+            ra_abs = abs(abs(ra[mes][acao][-1]))
+            pa_acao[acao][mes] += ra_abs
             pa[mes] += abs(ra[mes][acao][-1])
         # se não houve prejuizo
         else:
-            pa_acao[acao][mes] -= min(abs(ra[mes][acao][-1]), pa_acao[acao][mes])
-            pa[mes] -= min(abs(ra[mes][acao][-1]), pa_acao[acao][mes])
+            ra_abs = abs(abs(ra[mes][acao][-1]))
+            pa_acao[acao][mes] -= min(ra_abs, pa_acao[acao][mes])
+            pa[mes] -= min(ra_abs, pa_acao[acao][mes])
     
     # TODO: calcular o auferido médio de forma gradativa (para os gráficos)
     if len(ra[mes][acao]):
         ram[mes][acao][0] += ra[mes][acao][-1]
         ram[mes][acao][1] += 1
     
-    print(op)
-    print('pm', pm[acao][mes])
-    print('qm', qm[acao][mes])
-    print('ra'), ra[acao][mes]
+    print(list(op[['Data da operação', 'Ação', 'Operação']]))
+    print('pm', get_value(pm[acao], mes))
+    print('qm', get_value(qm[acao], mes))
+    print('ra', ra[mes][acao])
     print('pa_acao', pa_acao[acao][mes])
     print('pa', pa[mes])
 
@@ -97,6 +112,9 @@ for mes in ram:
         count += ram[mes][acao][1]
     ram_total[mes] /= count
 
+    ram_abs = abs(ram_total[mes])
     imposto_devido[mes] = \
-        (ram_total[mes] - min(ram_total[mes], pa[mes])) * 0.15
-print(ram_total)
+        (ram_abs - min(ram_abs, pa[mes])) * 0.15
+print(ram, '\n')
+print(ram_total, '\n')
+print(imposto_devido, '\n')
