@@ -133,6 +133,9 @@ class CalculadoraImposto():
     def retorna_total_compras(self) -> float:
         self.calcula_total_compra()
         return self.total_compra
+    
+    def retorna_mes_atual(self) -> int:
+        return self.mes_atual
 
     def calcula_pa(self) -> None:
         if self.pa is None:
