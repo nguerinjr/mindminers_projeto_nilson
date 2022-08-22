@@ -1,4 +1,4 @@
-from typing import List
+from typing import Dict, List
 import pandas as pd
 
 
@@ -21,6 +21,19 @@ class Acao():
         self.nome = nome
         self.pm = 0.
         self.qm = 0.
+        self.historico_pm = [self.pm]
+    
+    def retorna_pm(self) -> float:
+        return self.pm
+    
+    def retorna_nome(self) -> str:
+        return self.nome
+    
+    def retorna_historico_pm(self) -> List[float]:
+        return self.historico_pm
+    
+    def retorna_historico_qm(self) -> List[float]:
+        return self.historico_qm
     
     def atualiza_qm(self, quantidade: int, tipo_op: TipoOperacao) -> None:
         if tipo_op == TipoOperacao.COMPRA:
@@ -38,18 +51,24 @@ class Acao():
         pm /= (self.qm + quantidade)
         self.pm = pm
 
+        # guarda um histórico
+        self.historico_pm.append(self.pm)
+
 
 class ListaAcoes():
     def __init__(self, acoes_serie:pd.Series=None) -> None:
-        self.acoes_obj = {}
+        self.acoes_dict = {}
         if acoes_serie is not None:
             acoes_str = acoes_serie.unique()
             for acao_str in acoes_str:
-                self.acoes_obj[acao_str] = Acao(acao_str)
+                self.acoes_dict[acao_str] = Acao(acao_str)
+    
+    def retorna_dicionario_acoes(self) -> Dict[str, Acao]:
+        return self.acoes_dict
     
     def retorna_acao_por_nome(self, nome_acao: str) -> Acao:
-        if nome_acao in self.acoes_obj:
-            acao = self.acoes_obj[nome_acao]
+        if nome_acao in self.acoes_dict:
+            acao = self.acoes_dict[nome_acao]
         else:
             acao = None
 
@@ -66,12 +85,16 @@ class Operacao():
         self.quantidade = quantidade
         self.taxa_corretagem = taxa_corretagem
         self.acao = acao
+        self.pm_no_momento_operacao = None
 
         self.ra = None
     
     def retorna_ra(self) -> float:
         self.calcula_ra() # Se não calculou, será calculado antes de retornar
         return self.ra
+
+    def retorna_pm_na_operacao(self) -> float:
+        return self.pm_no_momento_operacao
     
     def retorna_preco(self) -> float:
         return self.preco
@@ -84,11 +107,12 @@ class Operacao():
     
     def calcula_ra(self) -> None:
         if self.ra is None:
+            self.pm_no_momento_operacao = self.acao.retorna_pm()
             if self.tipo == TipoOperacao.COMPRA:
                 self.acao.atualiza_pm(self.preco, self.quantidade, self.taxa_corretagem)
                 self.ra = 0. # não há RA em caso de op de compra. Define como zero.
             elif self.tipo == TipoOperacao.VENDA:
-                ra = (self.preco - self.acao.pm) * self.quantidade - self.taxa_corretagem
+                ra = (self.preco - self.acao.retorna_pm()) * self.quantidade - self.taxa_corretagem
                 self.ra = ra
             self.acao.atualiza_qm(self.quantidade, self.tipo)
 
@@ -96,12 +120,9 @@ class Operacao():
 class CalculadoraImposto():
     def __init__(
         self, 
-        lista_acoes: List[Acao], 
         mes_atual: int, 
         lista_operacoes: List[Operacao]
         ) -> None:
-
-        self.lista_acoes = lista_acoes
         self.lista_operacoes = lista_operacoes
         self.mes_atual = mes_atual
         self.ram = None
