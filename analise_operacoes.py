@@ -89,7 +89,7 @@ def coleta_evolucao_pm_e_pv_de_operacoes(operacoes_por_acao: List[Operacao]) -> 
 
 
 def gera_graficos_evolucao_pm_versus_pv(folder_saida: Path, lista_operacoes_por_acao: List[Operacao]) -> None:
-    evolucao_pm_versus_pv = folder_saida / 'evolucao_pm_versus_pv'
+    evolucao_pm_versus_pv = folder_saida / 'pm_versus_pv_por_acao'
     evolucao_pm_versus_pv.mkdir(exist_ok=True)
     for ops in lista_operacoes_por_acao:
         historico_pm, historico_pv = coleta_evolucao_pm_e_pv_de_operacoes(ops)
@@ -120,7 +120,7 @@ def agrupa_operacoes_por_acao(lista_operacoes: pd.Series, lista_acoes: ListaAcoe
     return agrupamento
 
 
-def coleta_evolucao_ra_de_operacoes(operacoes_por_acao: List[Operacao]) -> List[float]:
+def coleta_ra_por_operacao(operacoes_por_acao: List[Operacao]) -> List[float]:
     historico_ra = []
     for op in operacoes_por_acao:
         if op.tipo == TipoOperacao.VENDA:
@@ -129,18 +129,18 @@ def coleta_evolucao_ra_de_operacoes(operacoes_por_acao: List[Operacao]) -> List[
 
 
 def gera_graficos_evolucao_ra(folder_saida: Path, lista_operacoes_por_acao: List[Operacao]) -> None:
-    evolucao_ra = folder_saida / 'evolucao_ra'
+    evolucao_ra = folder_saida / 'ra_por_venda_por_acao'
     evolucao_ra.mkdir(exist_ok=True)
 
     for ops in lista_operacoes_por_acao:
-        historico_ra= coleta_evolucao_ra_de_operacoes(ops)
+        historico_ra = coleta_ra_por_operacao(ops)
 
         nome_acao = ops[0].acao.retorna_nome()
         fig = go.Figure()
         scatter = go.Scatter(x=list(range(len(historico_ra))), y=historico_ra, name='RA',
                        line=dict(dash='dash'))
         fig.add_trace(scatter)
-        fig.update_layout(title='Evolução do RA de ' + nome_acao, xaxis_title='#operação de venda', yaxis_title='Valor (Reais)')
+        fig.update_layout(title='RA por operação de venda de ' + nome_acao, xaxis_title='#operação de venda', yaxis_title='Valor (Reais)')
         fig.update_traces(marker_size=12)
         fig.write_image(evolucao_ra / (nome_acao + ".png"))
     
@@ -156,7 +156,7 @@ def gera_graficos(folder_saida: Path, meses: List[int],
     color = np.where(np.array(rendimento_liquido) < 0, 'red', 'green')
     fig = go.Figure()
     fig.add_trace(go.Bar(x=meses, y=rendimento_liquido))
-    fig.update_layout(title='Rendimento absoluto líquido', xaxis_title='Mês', yaxis_title='Valor (reais)')
+    fig.update_layout(title='Rendimento absoluto líquido por mês (Rendimento Bruto - IR)', xaxis_title='Mês', yaxis_title='Valor (reais)')
     fig.update_traces(marker_color=color)
     fig.write_image(folder_saida / "rendimento_absoluto_liquido.png")
 
@@ -165,7 +165,7 @@ def gera_graficos(folder_saida: Path, meses: List[int],
     color = np.where(np.array(redimento_liquido_acumulado) < 0, 'red', 'green')
     fig = go.Figure()
     fig.add_trace(go.Bar(x=meses, y=redimento_liquido_acumulado))
-    fig.update_layout(title='Lucro (acúmulo do rendimento absoluto líquido)', xaxis_title='Mês', yaxis_title='Valor (reais)')
+    fig.update_layout(title='Lucro (Rendimento absoluto líquido cumulativo)', xaxis_title='Mês', yaxis_title='Valor (reais)')
     fig.update_traces(marker_color=color)
     fig.write_image(folder_saida / "lucro.png")
 
@@ -176,10 +176,10 @@ def gera_graficos(folder_saida: Path, meses: List[int],
     operacoes_por_acao = agrupa_operacoes_por_acao(operacoes_df, lista_acoes)
     gera_graficos_evolucao_pm_versus_pv(folder_saida, operacoes_por_acao)
 
-    # evolução de ra por ação
+    # valores de ra por ação
     gera_graficos_evolucao_ra(folder_saida, operacoes_por_acao)
 
-    # evolucação do pa por mês
+    # valores do pa por mês
     fig = go.Figure()
     fig.add_trace(go.Bar(x=meses, y=pa))
     fig.update_layout(title='PA (Prejuízo acumulado) em cada mês', xaxis_title='Mês', yaxis_title='Valor (reais)')
