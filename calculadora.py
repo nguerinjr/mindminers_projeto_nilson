@@ -1,8 +1,11 @@
+# Este arquivo tem a interface da calculadora, e todos os objetos necessários para interagir com essa interface.
+
 from typing import Dict, List
 import pandas as pd
 
 
 class TipoOperacao():
+    # Esta classe "estática" pradoniza a numeração dos tipos de operações
     COMPRA: int = 0
     VENDA: int = 1
 
@@ -17,6 +20,7 @@ class TipoOperacao():
 
 
 class Acao():
+    # Representa cada ação disponível e guarda informações sobre QM e PM atuais
     def __init__(self, nome: str) -> None:
         self.nome = nome
         self.pm = 0.
@@ -56,6 +60,7 @@ class Acao():
 
 
 class ListaAcoes():
+    # Uma lista de objetos Ação diferentes, usando de identificador a string do nome da ação
     def __init__(self, acoes_serie:pd.Series=None) -> None:
         self.acoes_dict = {}
         if acoes_serie is not None:
@@ -76,6 +81,7 @@ class ListaAcoes():
 
 
 class Operacao():
+    # Cada operação realizada sobre os objetos do tipo Ação disponíveis. É responsável por calcular o RA da operação.
     def __init__(self, data: pd.Timestamp, tipo: TipoOperacao,
         acao: Acao, preco: float, quantidade: int,
         taxa_corretagem: int) -> None:
@@ -118,6 +124,7 @@ class Operacao():
 
     
 class CalculadoraImposto():
+    # Analisa listas de operações para cada um dos meses. Responsável por calcular os totais, RAm, imposto devido e PA
     def __init__(
         self, 
         mes_atual: int, 

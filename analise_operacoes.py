@@ -1,3 +1,5 @@
+# Arquivo principal, com as gerações de todos os gráficos.
+
 import numpy as np
 import pandas as pd
 from typing import List
@@ -12,7 +14,7 @@ def converte_tipo_para_int(
     df: pd.DataFrame,
     coluna_str: str,
     ) -> pd.DataFrame:
-
+    # Esta função converte a string de tipo de operação para um inteiro conforme classe TipoOperacao
     conversao = lambda tipo_str: TipoOperacao.converte_op_para_int(
         tipo_str
     )
@@ -36,7 +38,8 @@ def pre_processa_df(dados_df: pd.DataFrame, lista_acoes: ListaAcoes) -> pd.DataF
     return dados_df
 
 
-def cria_df_de_operacoes(dados_df: pd.DataFrame) -> List[Operacao]:
+def cria_serie_de_operacoes(dados_df: pd.DataFrame) -> pd.Series:
+    # Gera uma lista com objetos do tipo Operacao (representada por um pd.Series)
     conversao = lambda e: Operacao(
         e['Data da operação'], e['Operação'], e['Ação'], e['Preço'], e['Quantidade'], e['Taxa de corretagem']
     )
@@ -44,7 +47,8 @@ def cria_df_de_operacoes(dados_df: pd.DataFrame) -> List[Operacao]:
     return lista_operacoes
 
 
-def agrupa_operacoes_por_mes(df_operacoes: pd.DataFrame) -> List[pd.DataFrame]:
+def agrupa_operacoes_por_mes(df_operacoes: pd.Series) -> List[pd.DataFrame]:
+    # Função útils para agrupar em uma lista df de operações mês a mês
     meses = df_operacoes.apply(lambda e: e.data.month).unique()
     lista_meses = []
     for mes in meses:
@@ -54,6 +58,7 @@ def agrupa_operacoes_por_mes(df_operacoes: pd.DataFrame) -> List[pd.DataFrame]:
 
 
 def gera_graficos_evolucao_pm(folder_saida: Path, lista_acoes: ListaAcoes) -> None:
+    # Gera gráficos mostrando o PM para cada operação de compra realizada
     evolucao_pm = folder_saida / 'evolucao_pm_por_acao'
     evolucao_pm.mkdir(exist_ok=True)
     dicionario_acoes = lista_acoes.retorna_dicionario_acoes()
@@ -78,6 +83,7 @@ def gera_graficos_evolucao_pm(folder_saida: Path, lista_acoes: ListaAcoes) -> No
 
 
 def coleta_evolucao_pm_e_pv_de_operacoes(operacoes_por_acao: List[Operacao]) -> tuple[List[float], List[float]]:
+    # Função útils que mostra o histórico de PM e PV para cada operação de venda para cada ação diferente
     historico_pm = []
     historico_pv = []
     for op in operacoes_por_acao:
@@ -89,6 +95,7 @@ def coleta_evolucao_pm_e_pv_de_operacoes(operacoes_por_acao: List[Operacao]) -> 
 
 
 def gera_graficos_evolucao_pm_versus_pv(folder_saida: Path, lista_operacoes_por_acao: List[Operacao]) -> None:
+    # Exite o histórico de PM e PV para cada operação de venda por ação (perspectiva do lucro/prejuízo em cada operação)
     evolucao_pm_versus_pv = folder_saida / 'pm_versus_pv_por_acao'
     evolucao_pm_versus_pv.mkdir(exist_ok=True)
     for ops in lista_operacoes_por_acao:
@@ -108,6 +115,7 @@ def gera_graficos_evolucao_pm_versus_pv(folder_saida: Path, lista_operacoes_por_
     
 
 def agrupa_operacoes_por_acao(lista_operacoes: pd.Series, lista_acoes: ListaAcoes) -> List[List[Operacao]]:
+    # Realiza o agrupamento da Series de operações com relação a cada uma das ações disponíveis
     agrupamento = []
     dicionario_acoes = lista_acoes.retorna_dicionario_acoes()
     for acao_chave in dicionario_acoes:
@@ -121,6 +129,7 @@ def agrupa_operacoes_por_acao(lista_operacoes: pd.Series, lista_acoes: ListaAcoe
 
 
 def coleta_ra_por_operacao(operacoes_por_acao: List[Operacao]) -> List[float]:
+    # Função útils que retorna o RA das operações de venda realizadas
     historico_ra = []
     for op in operacoes_por_acao:
         if op.tipo == TipoOperacao.VENDA:
@@ -129,6 +138,7 @@ def coleta_ra_por_operacao(operacoes_por_acao: List[Operacao]) -> List[float]:
 
 
 def gera_graficos_evolucao_ra(folder_saida: Path, lista_operacoes_por_acao: List[Operacao]) -> None:
+    # Gráfico que exibe os valores dos RA para cada opeação de venda de cada ação
     evolucao_ra = folder_saida / 'ra_por_venda_por_acao'
     evolucao_ra.mkdir(exist_ok=True)
 
@@ -145,12 +155,12 @@ def gera_graficos_evolucao_ra(folder_saida: Path, lista_operacoes_por_acao: List
         fig.write_image(evolucao_ra / (nome_acao + ".png"))
     
 
-
 def gera_graficos(folder_saida: Path, meses: List[int], 
                   rendimento_liquido: List[float],
                   lista_acoes: ListaAcoes,
-                  operacoes_df: pd.DataFrame,
+                  operacoes_serie: pd.DataFrame,
                   pa: List[float]) -> None:
+    # Função geral que agrupa todas as sub-rotinas de geração de gráficos
 
     # plot solicitado
     color = np.where(np.array(rendimento_liquido) < 0, 'red', 'green')
@@ -173,7 +183,7 @@ def gera_graficos(folder_saida: Path, meses: List[int],
     gera_graficos_evolucao_pm(folder_saida, lista_acoes)
 
     # relação pm e pc/pv por operação sobre ação
-    operacoes_por_acao = agrupa_operacoes_por_acao(operacoes_df, lista_acoes)
+    operacoes_por_acao = agrupa_operacoes_por_acao(operacoes_serie, lista_acoes)
     gera_graficos_evolucao_pm_versus_pv(folder_saida, operacoes_por_acao)
 
     # valores de ra por ação
@@ -188,14 +198,15 @@ def gera_graficos(folder_saida: Path, meses: List[int],
 
 
 def main():
+    # Função principal
     folder_saida = Path('outputs')
     folder_saida.mkdir(exist_ok=True)
 
     dados_df = pd.read_csv('stocks-dataset.csv')
     lista_acoes = ListaAcoes(dados_df['Ação'])
     dados_df = pre_processa_df(dados_df, lista_acoes)
-    operacoes_df = cria_df_de_operacoes(dados_df)
-    lista_operacoes_por_mes = agrupa_operacoes_por_mes(operacoes_df)
+    operacoes_serie = cria_serie_de_operacoes(dados_df)
+    lista_operacoes_por_mes = agrupa_operacoes_por_mes(operacoes_serie)
 
     colunas_saida = [
         'Mês', 'Valor total de compra (reais)', 'Valor total de venda (reais)',
@@ -221,7 +232,7 @@ def main():
     df_saida.to_csv(folder_saida / 'dados_saida.csv', index=False, float_format='%.2f')
 
     # gerando gráficos interessantes
-    gera_graficos(folder_saida, meses, rendimento_liquido, lista_acoes, operacoes_df, pa)
+    gera_graficos(folder_saida, meses, rendimento_liquido, lista_acoes, operacoes_serie, pa)
     
     return 0
 
